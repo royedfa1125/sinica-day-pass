@@ -15,10 +15,12 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.thread = Worker(self)
-        self.thread.start()
         self.thread.sinOut1.connect(self.changestatus)
         self.thread.sinOut2.connect(self.DeviceNotification)
 
+    def StartThread(self):    
+        self.thread.start()
+        
     def changestatus(self, file_inf):
         _translate = QtCore.QCoreApplication.translate
         self.ui.label.setText(_translate("MainWindow", file_inf))
@@ -29,12 +31,12 @@ class MainWindow(QMainWindow):
         # self.recovery()
 
     def dialogbox(self):
-        self.hide()
+        # self.hide()
         self.myDialog = Dialog()
         self.myDialog.showFullScreen()
         # self.myDialog.setStyleSheet("background-color: black;")
     def datatimebox(self):
-        self.hide()
+        # self.hide()
         self.myDialog = Dialog_1()
         self.myDialog.showFullScreen()
         # self.myDialog.setStyleSheet("background-color: black;")
@@ -69,10 +71,10 @@ class Dialog(QMainWindow):
         self.ut.setupUi(self)
 
     def mainv(self):
-        self.hide()
-        self.MW = MainWindow()
-        self.MW.showFullScreen()
-        self.MW.setStyleSheet("background-color: black;")
+        self.close()
+        # self.MW = MainWindow()
+        # self.MW.showFullScreen()
+        # self.MW.setStyleSheet("background-color: black;")
 
 class Dialog_1(QMainWindow):
     def __init__(self, parent=None):
@@ -81,10 +83,10 @@ class Dialog_1(QMainWindow):
         self.ud.setupUi(self)
 
     def mainv(self):
-        self.hide()
-        self.MW = MainWindow()
-        self.MW.showFullScreen()
-        self.MW.setStyleSheet("background-color: black;")
+        self.close()
+        # self.MW = MainWindow()
+        # self.MW.showFullScreen()
+        # self.MW.setStyleSheet("background-color: black;")
 
 class Worker(QThread):
     sinOut1 = pyqtSignal(str)
@@ -355,6 +357,7 @@ class Worker(QThread):
             DeName = f.readline()
         path = "/home/pi/log/" + date_str + "-" + addr + "-log.csv"
         with open(path, 'a', newline='') as csvfile:
+            print("write")
             writer = csv.writer(csvfile)
             writer.writerow([
                 DeName, addr, Datetime_str, msg_datetime, msg_name,
@@ -368,4 +371,5 @@ if __name__ == "__main__":
     win.showFullScreen()
     win.show()
     win.setStyleSheet("background-color: black;")
+    win.StartThread()
     sys.exit(app.exec_())
