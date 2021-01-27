@@ -369,7 +369,6 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = MainWindow()
     win.showFullScreen()
-    win.show()
     win.setStyleSheet("background-color: black;")
     win.StartThread()
     sys.exit(app.exec_())
