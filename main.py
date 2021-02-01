@@ -372,4 +372,3 @@ if __name__ == "__main__":
     win.setStyleSheet("background-color: black;")
     win.StartThread()
     sys.exit(app.exec_())
-    # test2
