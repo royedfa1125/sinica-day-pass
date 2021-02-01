@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, os, time, uuid, csv, datetime, pygame
+import sys, os, time, csv, datetime, pygame
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QMessageBox
 from PyQt5.QtCore import QDate, QDateTime, QTime, QTimer, QEventLoop, QThread, pyqtSignal
@@ -346,9 +346,10 @@ class Worker(QThread):
                 pygame.mixer.music.play()
 
     def SaveData(self, msg_name, checkNumber, NumberGroup, msg_datetime, msg_serial):
-        node = uuid.getnode()
-        mac = uuid.UUID(int=node)
-        addr = mac.hex[-12:]
+        # node = uuid.getnode()
+        # mac = uuid.UUID(int=node)
+        # addr = mac.hex[-12:]
+        addr = os.popen("ifconfig | grep ether | awk {'print $2'} | sed -r 's/://g'").readline().strip('\n')
         date = datetime.datetime.today()
         date_str = date.strftime("%Y%m%d")
         Datetime = datetime.datetime.now()
@@ -357,7 +358,6 @@ class Worker(QThread):
             DeName = f.readline()
         path = "/home/pi/log/" + date_str + "-" + addr + "-log.csv"
         with open(path, 'a', newline='') as csvfile:
-            print("write")
             writer = csv.writer(csvfile)
             writer.writerow([
                 DeName, addr, Datetime_str, msg_datetime, msg_name,
@@ -372,3 +372,4 @@ if __name__ == "__main__":
     win.setStyleSheet("background-color: black;")
     win.StartThread()
     sys.exit(app.exec_())
+    # test2
