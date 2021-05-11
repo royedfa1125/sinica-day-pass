@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys, os, time, csv, datetime, pygame
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QMessageBox
@@ -7,8 +6,13 @@ from gui import Ui_MainWindow
 from setting import Ui_Dialog
 from setdate import Ui_Dialog_1
 
+pygame.mixer.init()
+pygame.mixer.music.set_volume(1.0)
+
+duration = 6000 # FOR GROUP GUESTS
+
 class MainWindow(QMainWindow):
-    sinOut3 = pyqtSignal(int)
+    sinOut0 = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -16,19 +20,19 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.thread = Worker(self)
         self.thread.sinOut1.connect(self.changestatus)
-        self.thread.sinOut2.connect(self.DeviceNotification)
+        self.thread.sinOut2.connect(self.changestatus)
+        self.thread.sinOut3.connect(self.DeviceNotification)
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.recovery)
 
     def StartThread(self):    
         self.thread.start()
         
-    def changestatus(self, file_inf):
+    def changestatus(self, file_inf, duration=3000):
         _translate = QtCore.QCoreApplication.translate
         self.ui.label.setText(_translate("MainWindow", file_inf))
-        # time.sleep(3)
-        self.timer2 = QTimer(self)
-        self.timer2.timeout.connect(self.recovery)
-        self.timer2.start(3000)
-        # self.recovery()
+        self.timer.start(duration)
 
     def dialogbox(self):
         # self.hide()
@@ -48,7 +52,7 @@ class MainWindow(QMainWindow):
                 "MainWindow",
                 "<html><head/><body><p><span style=\" font-size:70pt;color:#ffffff;\">歡迎蒞臨 !</span></p><p><span style=\" font-size:70pt;color:#ffffff;\">請出示QR碼</span></p><p><br/></p><p><span style=\" font-size:70pt;color:#ffffff;\">Welcome!</span></p><p><span style=\" font-size:70pt;color:#ffffff;\">Please show your QRcode</span></p></body></html>"
             ))
-        self.timer2.stop()
+        self.timer.stop()
 
     def DeviceNotification(self, str):
         self.alert = QMessageBox()
@@ -59,10 +63,7 @@ class MainWindow(QMainWindow):
         # self.alert.exec_()
         # self.alert.buttonClicked.connect(self.msgButtonClick)
         
-        self.sinOut3.emit(self.alert.exec()) # HOLD HERE
-        #if returnValue == QMessageBox.Ok:
-
-        # os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
+        self.sinOut0.emit(self.alert.exec()) # HOLD HERE
 
 class Dialog(QMainWindow):
     def __init__(self, parent=None):
@@ -90,11 +91,12 @@ class Dialog_1(QMainWindow):
 
 class Worker(QThread):
     sinOut1 = pyqtSignal(str)
-    sinOut2 = pyqtSignal(str)
+    sinOut2 = pyqtSignal(str, int)
+    sinOut3 = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super(Worker, self).__init__(parent)
-        parent.sinOut3.connect(self.comfirm)
+        parent.sinOut0.connect(self.comfirm)
         self.returnValue = None
 
     def comfirm(self, returnValue):
@@ -103,29 +105,8 @@ class Worker(QThread):
     def run(self):
         import evdev, os, sys, rsa, base64
         from evdev import InputDevice, categorize, ecodes
-        while True:
-            command_sda = 'sudo fdisk -l'
-            rep_sda = os.popen(command_sda)
-            check_usb = str(rep_sda.readlines())
-            if '/dev/sda' in check_usb:
-                pass
-            else:
-                self.sinOut2.emit("請插入隨身碟")
-                while self.returnValue != 1024:             # HOLD HERE
-                    pass
-                self.returnValue = None
 
-            command = 'cat /proc/bus/input/devices | grep -A 5 -i HID | grep event'
-            device = os.popen(command).readlines()
-            if not device:
-                self.sinOut2.emit("請插入條碼機")
-                while self.returnValue != 1024:             # HOLD HERE
-                    pass
-                self.returnValue = None
-            else:
-                device_event = '/dev/input/' + device[0].split()[-1]
-                dev = InputDevice(device_event)
-                scancodes = {
+        scancodes = {
                     # Scancode: ASCIICode
                     0: None,
                     1: u'ESC',
@@ -185,10 +166,9 @@ class Worker(QThread):
                     56: u'LALT',
                     57: u' ',
                     78: u'+',
-                    100: u'RALT'
-                }
+                    100: u'RALT'}
 
-                capscodes = {
+        capscodes = {
                     0: None,
                     1: u'ESC',
                     2: u'!',
@@ -247,14 +227,36 @@ class Worker(QThread):
                     56: u'LALT',
                     57: u' ',
                     78: u'+',
-                    100: u'RALT'
-                }
+                    100: u'RALT'}
+
+        while True:
+            command_sda = 'sudo fdisk -l'
+            rep_sda = os.popen(command_sda)
+            check_usb = str(rep_sda.readlines())
+            # if '/dev/sda' in check_usb:
+            #     pass
+            # else:
+            if '/dev/sda' not in check_usb:
+                self.sinOut3.emit("請插入隨身碟")
+                while self.returnValue != QMessageBox.Ok:            # HOLD HERE
+                    pass
+                self.returnValue = None
+
+            command = 'cat /proc/bus/input/devices | grep -A 5 -i HID | grep event'
+            device = os.popen(command).readlines()
+            if not device:
+                self.sinOut3.emit("請插入條碼機")
+                while self.returnValue != QMessageBox.Ok:             # HOLD HERE
+                    pass
+                self.returnValue = None
+            if device:
+                device_event = '/dev/input/' + device[0].split()[-1]
+                dev = InputDevice(device_event)
                 x = ''
                 caps = False
                 with open('/home/pi/private_1024.key', 'rb') as f:
                     privkey = rsa.PrivateKey.load_pkcs1(f.read())
-
-                try:
+                try:   
                     for event in dev.read_loop():
                         if event.type == ecodes.EV_KEY:
                             data = categorize(event)
@@ -278,33 +280,26 @@ class Worker(QThread):
                                     x += key_lookup
                                 if (data.scancode == 28):
                                     try:
-                                        encrypted_str = x
-                                        encrypted_str = encrypted_str.encode()
-                                        encrypted_str = base64.b64decode(encrypted_str)
-                                        decrypted_str = rsa.decrypt(encrypted_str, privkey)
+                                        decrypted_str = rsa.decrypt(base64.b64decode(x.encode()), privkey)
                                     except Exception as e:
                                         file_str = "<html><head/><body><p><span style=\" font-size:144pt; color:#de0101;\">INVALID</span></p></body></html>"
                                         self.sinOut1.emit(file_str)
-                                        continue
+                                        pygame.mixer.music.load('/home/pi/Scan/voice/no.mp3')
+                                        pygame.mixer.music.play()
+                                        # continue
                                     else:
-                                        decrypted_str = decrypted_str.decode()
-                                        self.checkData(decrypted_str)
+                                        self.checkData(decrypted_str.decode())
                                     finally:
                                         x = ''
                 except:
-                    self.sinOut2.emit("請插回條碼機")
-                    while self.returnValue != 1024:             # HOLD HERE
+                    self.sinOut3.emit("請插回條碼機")
+                    while self.returnValue != QMessageBox.Ok:             # HOLD HERE
                         pass
                     self.returnValue = None
-
-        # except OSError:
-        #     self.DeviceNotification("Please check QR scanner")
 
     def checkData(self, msg):
         data = msg
         t = time.time()
-        pygame.mixer.init()
-        pygame.mixer.music.set_volume(1.0)
         try:
             msg_name, checkNumber,NumberGroup, msg_date, msg_time,msg_serial = msg.split('-')
             msg_datetime = msg_date + "-" + msg_time
@@ -312,6 +307,8 @@ class Worker(QThread):
         except Exception as e:
             file_str = "<html><head/><body><p><span style=\" font-size:144pt; color:#de0101;\">INVALID</span></p></body></html>"
             self.sinOut1.emit(file_str)
+            pygame.mixer.music.load('/home/pi/Scan/voice/pass.mp3')
+            pygame.mixer.music.play()
         else:
             if (msg_name == 'sinica'):
                 msgUnixTime = time.mktime(
@@ -319,12 +316,20 @@ class Worker(QThread):
                         msg_datetime, "%Y/%m/%d-%H:%M:%S").timetuple())
                 surviveTime = msgUnixTime - t
                 if (checkNumber == 'Y' and surviveTime > 0):
-                    file_str = "<html><head/><body><p><span style=\" font-size:144pt; color:#22de01;\">PASS</span></p><p><span style=\" font-size:48pt; color:#7a9bdf;\">通行人數："+ NumberGroup + "</span></p></body></html>"
-                    self.sinOut1.emit(file_str)
-                    pygame.mixer.music.load('/home/pi/Scan/voice/pass.mp3')
-                    pygame.mixer.music.play()
-                    self.SaveData(msg_name, checkNumber ,NumberGroup, msg_datetime,
-                                  msg_serial)
+                    if(NumberGroup == '特定對象'):
+                        file_str = "<html><head/><body><p><span style=\" font-size:144pt; color:#ffb066;\">" + NumberGroup +"</span></p></body></html>"
+                        self.sinOut2.emit(file_str, duration)
+                        pygame.mixer.music.load('/home/pi/Scan/voice/special.mp3')
+                        pygame.mixer.music.play()
+                        self.SaveData(msg_name, checkNumber ,NumberGroup, msg_datetime,
+                                    msg_serial)
+                    else:
+                        file_str = "<html><head/><body><p><span style=\" font-size:144pt; color:#22de01;\">PASS</span></p><p><span style=\" font-size:48pt; color:#7a9bdf;\">通行人數："+ NumberGroup + "</span></p></body></html>"
+                        self.sinOut1.emit(file_str)
+                        pygame.mixer.music.load('/home/pi/Scan/voice/pass.mp3')
+                        pygame.mixer.music.play()
+                        self.SaveData(msg_name, checkNumber ,NumberGroup, msg_datetime,
+                                    msg_serial)
                 elif (checkNumber == 'Y' and surviveTime <= 0):
                     file_str = "<html><head/><body><p><span style=\" font-size:144pt; color:#de0101;\">INVALID</span></p><p><span style=\" font-size:48pt; color:#ffa964;\">通行碼逾時</span></p></body></html>"
                     self.sinOut1.emit(file_str)
