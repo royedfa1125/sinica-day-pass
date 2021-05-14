@@ -242,7 +242,7 @@ class Worker(QThread):
                     pass
                 self.returnValue = None
 
-            command = 'cat /proc/bus/input/devices | grep -A 5 -i HID | grep event'
+            command = 'cat /proc/bus/input/devices | grep -A 5 -i -E 'HID|Scanner' | grep event'
             device = os.popen(command).readlines()
             if not device:
                 self.sinOut3.emit("請插入條碼機")
